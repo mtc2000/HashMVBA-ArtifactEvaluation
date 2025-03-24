@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  env:
+    image: hmvba-test-env:latest
+    volumes:
+      - type: bind
+        source: ../
+        target: /root/
+    ports:
+      - "20022:22"
+    build:
+      dockerfile: env.Dockerfile
