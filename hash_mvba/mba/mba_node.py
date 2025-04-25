@@ -49,7 +49,7 @@ except ImportError:
     import pickle
 
 from honeybadgerbft.exceptions import UnknownTagError
-from myexperiements.sockettest.make_random_tx import random_tx_generator, pseudo_random_tx_generator
+from mvba_node.make_random_tx import random_tx_generator, pseudo_random_tx_generator
 
 
 def set_consensus_log(id: int):
@@ -137,7 +137,7 @@ class MBA():
         self.total_latency = 0
         self.total_tx = 0
 
-        self.log_file_name = "../log_" + "dumbo" + ".txt"
+        self.log_file_name = "../log_" + "mba" + ".txt"
 
     def submit_tx(self, tx):
         """Appends the given transaction to the transaction buffer.

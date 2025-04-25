@@ -46,7 +46,7 @@ except ImportError:
     import pickle
 
 from honeybadgerbft.exceptions import UnknownTagError
-from myexperiements.sockettest.make_random_tx import random_tx_generator, pseudo_random_tx_generator
+from mvba_node.make_random_tx import random_tx_generator, pseudo_random_tx_generator
 
 
 def load_key(pid, N: int, f: int):
