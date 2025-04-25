@@ -107,7 +107,22 @@ def run_fin_mvba(
 ):
     """
     Run FIN MVBA protocol
+    It takes an input ``vi`` and will
+    finally writes the decided value into ``decide`` channel.
 
+    :param sid: session identifier
+    :param pid: my id number in the whole network
+    :param r: round number, caller should specify this
+    :param N: the number of parties
+    :param f: the number of byzantine parties
+    :param _input: input queue, ``input.get()`` is called to receive an input
+    :param recv: receive function, is called to receive data to other nodes
+    :param send: send function, is called to send data to other nodes
+    :param output_queue: output quete, ``output_queue.put_nowait(X)`` is eventually called to write the decided value X
+    :param put_thread: a function that puts spawned threads into a queue maintained by the caller
+    :param predicate: ``predicate(X)`` represents the externally validated condition of X
+    :param logger: logger maintained by the caller
+    :param thread_safe: True on default, to avoid racing condition over underlying data structures
     """
     # logger = None
 

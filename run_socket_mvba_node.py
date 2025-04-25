@@ -48,7 +48,7 @@ def instantiate_mvba_node(sid, i, B, N, f, K, mvba_from_server: Callable, mvba_t
         from dumbomvbastar_bls.core.dumbomvba_star import smvbastar as smvbastar_bls
         mvba = DUMBO_MVBA(sid, i, B, N, f, mvba_from_server, mvba_to_client, ready, stop, K, countpoint, mute=mute, debug=debug, mvba_func=smvbastar_bls)
     else:
-        print("Only support mvba", flush=True)
+        print("Only support mba, pmvba, finmvba, dumbomvbastar, dumbomvbastarbls", flush=True)
     return mvba
 
 def set_node_log(id: int):

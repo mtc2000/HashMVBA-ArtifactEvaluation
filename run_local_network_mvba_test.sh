@@ -2,16 +2,17 @@
 
 # usage:
 # bash run_local_newwork_mvba_test.sh \
-# scale_N \
-# adversory_f \
-# batch_size_B \
-# repeating_count_K \
-# warmup_count_C \
-# protocol_P
+# $1 scale_N \
+# $2 adversory_f \
+# $3 batch_size_B \
+# $4 repeating_count_K \
+# $5 warmup_count_C \
+# $6 protocol_P
 
 # valid protocols are:
 # hmvba
 # dumbomvbastar
+# dumbomvbastarbls
 # finmvba
 
 killall --quiet python3

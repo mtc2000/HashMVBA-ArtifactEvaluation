@@ -104,21 +104,23 @@ def run_hmvba(
         thread_safe: bool = True
 ):
     """
-    Run P-MVBA protocol
-    Usage:
+    Run Hash-based MVBA (P-MVBA) protocol
+    It takes an input ``vi`` and will
+    finally writes the decided value into ``decide`` channel.
 
-    round_input_queue = Queue(1)
-    round_output_queue = Queue(1)
-
-    #run_p_mvba(sid, pid, r, N, f, round_input_queue.get, recv, send, self.sPK, self.sSK, round_output_queue,
-    #        self.aba_time, self.aba_time_interval, self.basetime)
-
-    gevent.spawn(run_p_mvba, sid, pid, r, N, f, round_input_queue, recv, send, self.sPK, self.sSK, round_output_queue,
-            self.aba_time, self.aba_time_interval, self.basetime)
-
-    round_input_queue.put_nowait(tx_to_send)
-    result = round_output_queue.get() # None or a result
-
+    :param sid: session identifier
+    :param pid: my id number in the whole network
+    :param r: round number, caller should specify this
+    :param N: the number of parties
+    :param f: the number of byzantine parties
+    :param _input: input queue, ``input.get()`` is called to receive an input
+    :param recv: receive function, is called to receive data to other nodes
+    :param send: send function, is called to send data to other nodes
+    :param output_queue: output quete, ``output_queue.put_nowait(X)`` is eventually called to write the decided value X
+    :param put_thread: a function that puts spawned threads into a queue maintained by the caller
+    :param predicate: ``predicate(X)`` represents the externally validated condition of X
+    :param logger: logger maintained by the caller
+    :param thread_safe: True on default, to avoid racing condition over underlying data structures
     """
     # logger = None
 

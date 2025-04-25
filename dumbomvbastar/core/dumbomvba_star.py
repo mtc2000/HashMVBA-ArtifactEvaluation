@@ -64,7 +64,9 @@ def smvbastar(
         predicate=lambda x: True,
         logger: logging.Logger=None
     ):
-    """Multi-valued Byzantine consensus. It takes an input ``vi`` and will
+    """
+    Run sMVBA★-ECDSA protocol
+    It takes an input ``vi`` and will
     finally writes the decided value into ``decide`` channel.
 
     :param sid: session identifier
@@ -73,13 +75,17 @@ def smvbastar(
     :param f: the number of byzantine parties
     :param PK: ``boldyreva.TBLSPublicKey`` with threshold f+1
     :param SK: ``boldyreva.TBLSPrivateKey`` with threshold f+1
-    :param PK1: ``boldyreva.TBLSPublicKey`` with threshold n-f
-    :param SK1: ``boldyreva.TBLSPrivateKey`` with threshold n-f
+    :param PK1: ``boldyreva.TBLSPublicKey`` with threshold n-f (not used in this protocol)
+    :param SK1: ``boldyreva.TBLSPrivateKey`` with threshold n-f (not used in this protocol)
+    :param PK2s: an array of ``coincurve.PublicKey'', i.e., N public keys of ECDSA for all parties (not used in this protocol)
+    :param SK2: ``coincurve.PrivateKey'', i.e., secret key of ECDSA (not used in this protocol)
     :param input: ``input()`` is called to receive an input
     :param decide: ``decide()`` is eventually called
     :param receive: receive channel
     :param send: send channel
+    :param put_thread: a function that puts spawned threads into a queue maintained by the caller
     :param predicate: ``predicate()`` represents the externally validated condition
+    :param logger: logger maintained by the caller
     """
     assert PK.k == f + 1
     assert PK.l == N
