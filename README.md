@@ -6,11 +6,79 @@ This codebase contains a proof-of-concept implementation of the hash-based MVBA 
 
 This codebase also includes PoC implementation of FIN-MVBA in [FIN: Practical Signature-Free Asynchronous Common Subset in Constant Time](https://dl.acm.org/doi/10.1145/3576915.3616633), sMVBA★-BLS and sMVBA★-ECDSA, whose full descriptions can be found in the accepted paper.
 
-## Pre-requisites
+## Code structure
+
+The following is a brief introduction to the directory structure of this artifact:
+```{text}
+├── crypto                  # Implementation of cryptographic primitives.
+├── docker                  # Docker supports
+├── dsn25-paper239.accepted-version.pdf     # Paper (accepted version)
+├── dumbomvba               # Legacy code in Dumbo_NG
+├── dumbomvbastar           # Implementation of sMVBA★-ECDSA
+├── dumbomvbastar_bls       # Implementation of sMVBA★-BLS
+├── fin_mvba                # Implementation of FIN-MVBA, including its RABA subprotocols pillar and pisa
+├── hash_mvba               # Implementation of our hash-based MVBA, including the MBA subprotocol
+├── honeybadgerbft          # Legacy code in Honeybadger BFT
+├── hosts.config            # See below "Communication model"
+├── mvba_node               # Contain testing classes and helper functions
+│   ├── dumbo_node.py       # Contain runner class for testing Dumbo MVBAs
+│   ├── make_random_tx.py   # Produce random transactions
+│   └── node.py             # Contain runner class for testing hash-based MVBAs
+├── network                 # Server and client classes that handle socket communications
+├── non_docker              # Shell scripts to set up running environment on bluk non-Docker OSs
+├── README.md
+├── run_local_network_mvba_test.sh      # Helper shell script for running local tests
+├── run_socket_mvba_node.py # Python test framework
+├── run_trusted_key_gen.py  # Helper script to generate keys for non-hash-based MVBAs
+├── speedmvba               # Legacy code in Dumbo_NG
+├── speedmvba_bls           # Modified based on speedmvba
+├── test_dumbomvbastar_bls.sh       # Local test script for sMVBA★-BLS
+├── test_dumbomvbastar.sh   # Local test script for sMVBA★-ECDSA
+├── test_finmvba.sh         # Local test script for FIN MVBA
+└── test_hmvba.sh           # Local test script for our hash-based MVBA
+```
+
+Specifically, MVBA implementations are at the following locations:
+- Our hash-based MVBA: `hash_mvba.core.hmvba_protocol.run_hmvba`
+- FIN-MVBA: `fin_mvba.core.fin_mvba_protocol.run_fin_mvba`
+- sMVBA★-BLS: `dumbomvbastar_bls.core.dumbomvba_star.smvbastar`
+- sMVBA★-ECDSA: `dumbomvbastar.core.dumbomvba_star.smvbastar`
+
+## Communication model and configurations
+
+We establish point-to-point communication channels between every two nodes via unauthenticated TCP sockets. 
+To make this possible, one must prepare a valid and static `hosts.config` beforehand. `hosts.config` is a global address book shared by all nodes. The `i`-th line specifies the IP address and the receiving port of the `i`-th instance whose `pid` is `i` (assume `0`-indexing). 
+Suppose the `i`-th line of `hosts.config` is `a.b.c.d X`, then the `i`-th instance should bind to IP address `a.b.c.d` and the receiving port `X`. It reserves the next `N` consecutive ports `[X+1, X+N]` as sending ports where port `X+j` of the `i`-th instance only handles outgoing data to the `j`-th instance with `pid=j`. This port binding convention is helpful to keep track of all communication pairs.
+
+### Address book format
+
+Each line of the `hosts.config` should contain an IP address and a port number. When the port number is omitted, a default receiving port `10000` is used. 
+When `localhost` or `127.0.0.1` is specified as the IP address of a node, the receiving port is hard-coded as `pid * 200`. The processing of address book is in `run_socket_mvba_node.py`.
+
+For example, with the following address book, a test can be run among five nodes.
+- The `0`-th node binds to `200.0.0.1` and listens to port `10000`. It will attempt to establish TCP connection to `200.0.0.1:10000`, `200.0.0.2:1234`, `200.0.0.3:1111`, `200.0.0.4:2222`, `180.0.0.4:9889` from port `10001` to `10005`.
+- The `4`-th node binds to `180.0.0.4` and listens to port `9889`. It will attempt to establish TCP connection to `200.0.0.1:10000`, `200.0.0.2:1234`, `200.0.0.3:1111`, `200.0.0.4:2222`, `180.0.0.4:9889` from port `9890` to `9894`.
+
+```{text}
+200.0.0.1
+200.0.0.2 1234
+200.0.0.3 1111
+200.0.0.4 2222
+180.0.0.4 9889
+```
+
+## Supported environment and required specification
+
+Our implementation has been tested on (1) AWS `t2.medium` EC2 instances with Amazon Linux 2023 as the operating system, and (2) Debian-based Docker images. 
+`t2.medium` instances have 2 Intel Xeon processors of speed up to 3.4 GHz Turbo CPU clock and 4 GB memory, whereas the host machine of the Docker has a 13th Gen Intel i9-13900 CPU processor with 32 cores and of up to 5.6 GHz CPU clock, and 32 GB memory.
+
+For local testing or cluster testing, we highly recommend 1GB RAM per running node. Note that memory usage will increase when the testing batch size increases.
+
+## Setup running environments
+
+### Docker setup
 
 We utilize `docker` to prepare an isolated and reusable environment for this codebase.
-
-## Docker setup
 
 When `docker` is installed, one can build the environment in a container image `hmvba-test-env` by the following bash commands.
 
@@ -32,9 +100,14 @@ The running `docker` environment has a `sshd` service binding the port `20022` o
 ssh -p 20022 root@localhost
 ```
 
-## Non-docker setup
+### Non-docker setup
 
-If you do wish to continue on a non-isolated environment, please consult [docker/env.Dockerfile](docker/env.Dockerfile) to understand how dependencies should be installed.
+We provide two setup shell scripts in [./non_docker](non_docker) folder to support manual setup. Note that this may pollute your OS or break existing dependencies in your OS. 
+
+- [/non_docker/amazonlinux_setup.sh](/non_docker/amazonlinux_setup.sh) will set up the environment on the AWS EC2 default OS, `amazonlinux 2023`. 
+- [/non_docker/debian_setup.sh](/non_docker/debian_setup.sh) will set up the environment on Debian-based OS. It will overwrite default Python to Python 3.8.
+
+If you do wish to manually set up a non-isolated environment on a different OS, please consult the above shell scripts thus the [docker/env.Dockerfile](docker/env.Dockerfile) to understand how dependencies should be installed.
 
 ## How to run local tests
 
@@ -54,6 +127,25 @@ Files under `log/` record timing information that were manually processed.
 node: 0 epoch: 1 run: 0.217375, total delivered Txs after warm-up: 10, latency after warm-up: 0.217375, tps after warm-up: 46.003391, average latency by rounds + stddev: 0.217375 0.000000, average tps by rounds + stddev: 46.003391 0.000000, 
 ```
 
+## Reproducibility support
+
+Our test runner `run_socket_mvba_node.py` requires a global address book `hosts.config` (explained in Section [Communication model and configurations](#communication-model-and-configurations)) and a collection of parameters. 
+We demonstrate the parameters in an exemplar shell script `run_local_network_mvba_test.sh` and provide a more detailed explanation below. 
+
+To run `run_socket_mvba_node.py`, we need six parameters along with the address book and a working environment. The parameters are: 
+- `$1`: the number of nodes in the whole testing network.
+- `$2`: the number of Byzantine nodes that the protocol expects to tolerate.
+- `$3`: the batch size. Each batch is a random string of 250 bytes.
+- `$4`: the number of time to repeat testing.
+- `$5`: the "warm up" counter, the number of repeats needed to warm up the system before the actual measurement of the performance of the protocol.
+- `$6`: the protocol to be tested. Valid protocols are:
+    - `hmvba`: our hash-based MVBA
+    - `dumbomvbastar`: sMVBA★-ECDSA
+    - `dumbomvbastarbls`: sMVBA★-BLS
+    - `finmvba`: FIN-MVBA
+
+When `N` instances completes running the experiment, one needs to collect the `*.stdout.log` logs of all nodes, and extract the latency data from these logs. The throughput measurement can be derived from dividing the batch size by the latency.
+
 ## Limitations
 
 - Scripts that automate cloud-based experiments on AWS are not provided. We adapted and customized the cloud testing framework in https://zenodo.org/doi/10.5281/zenodo.12736462.
@@ -61,181 +153,4 @@ node: 0 epoch: 1 run: 0.217375, total delivered Txs after warm-up: 10, latency a
 
 ---
 
-Here down below is the original README.md of [Dumbo-NG](https://github.com/yylluu/Dumbo_NG).
-
-Proof-of-Concept implementation for Dumbo-NG. 
-The code is forked from the implementation of Honeybadger-BFT protocol.
-This codebase also includes PoC implementations for Dumbo, sDumbo, Dumbo-DL.
-
-1. To run the benchmarks at your machine (with Ubuntu 18.84 LTS), first install all dependencies as follows:
-    ```
-    sudo apt-get update
-    sudo apt-get -y install make bison flex libgmp-dev libmpc-dev python3 python3-dev python3-pip libssl-dev
-    
-    wget https://crypto.stanford.edu/pbc/files/pbc-0.5.14.tar.gz
-    tar -xvf pbc-0.5.14.tar.gz
-    cd pbc-0.5.14
-    sudo ./configure
-    sudo make
-    sudo make install
-    cd ..
-    
-    sudo ldconfig /usr/local/lib
-    
-    cat <<EOF >/home/ubuntu/.profile
-    export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
-    EOF
-    
-    source /home/ubuntu/.profile
-    export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
-     
-    git clone https://github.com/JHUISI/charm.git
-    cd charm
-    sudo ./configure.sh
-    sudo make
-    sudo make install
-    sudo make test
-    cd ..
-    
-    python3 -m pip install --upgrade pip
-    sudo pip3 install gevent setuptools gevent numpy ecdsa pysocks gmpy2 zfec gipc pycrypto coincurve
-    ```
-
-2. A quick start to run Dumbo/sDumbo for 20 epochs with a batch size of 1000 tx can be:
-   ```
-   ./run_local_network_test.sh 4 1 1000 20
-   ```
-   
-   To run Dumbo-NG, replace line 12 of run_local_network_test.sh with:
-   ```
-   python3 run_socket_node.py --sid 'sidA' --id $i --N $1 --f $2 --B $3 --S 100 --P "ng" --D True --O True --C $4 &
-   ```
-   for running Dumbo-NG with a batch size of 1000tx and a 20-epoch warm up can be:
-   ```
-   ./run_local_network_test.sh 4 1 1000 20
-   ```
-   
-   To run Dumbo-DL, replace line 12 of run_local_network_test.sh with:
-   ```
-   python3 run_sockets_node.py --sid 'sidA' --id $i --N $1 --f $2 --B $3 --K $4 --S 100 --P "dl" --D True --O True &
-   ```
-   for 20 epochs with a batch size of 1000tx can be:
-   ```
-   ./run_local_network_test.sh 4 1 1000 20
-   ```
-   
-
-3. If you would like to test the code among AWS cloud servers (with Ubuntu 18.84 LTS). You can follow the commands inside run_local_network_test.sh to remotely start the protocols at all servers. An example to conduct the WAN tests from your PC side terminal can be:
-   ```
-   # the number of remove AWS servers
-   N = 4
-   
-   # public IPs --- This is the public IPs of AWS servers
-    pubIPsVar=([0]='3.236.98.149'
-    [1]='3.250.230.5'
-    [2]='13.236.193.178'
-    [3]='18.181.208.49')
-    
-   # private IPs --- This is the private IPs of AWS servers
-    priIPsVar=([0]='172.31.71.134'
-    [1]='172.31.7.198'
-    [2]='172.31.6.250'
-    [3]='172.31.2.176')
-   
-   # Clone code to all remote AWS servers from github
-    i=0; while [ $i -le $(( N-1 )) ]; do
-    ssh -i "/home/your-name/your-key-dir/your-sk.pem" -o StrictHostKeyChecking=no ubuntu@${pubIPsVar[i]} "git clone --branch release https://github.com/fascy/dumbo-ng.git" &
-    i=$(( i+1 ))
-    done
-   
-   # Update IP addresses to all remote AWS servers 
-    rm tmp_hosts.config
-    i=0; while [ $i -le $(( N-1 )) ]; do
-      echo $i ${priIPsVar[$i]} ${pubIPsVar[$i]} $(( $((200 * $i)) + 10000 )) >> tmp_hosts.config
-      i=$(( i+1 ))
-    done
-    i=0; while [ $i -le $(( N-1 )) ]; do
-      ssh -o "StrictHostKeyChecking no" -i "/home/your-name/your-key-dir/your-sk.pem" ubuntu@${pubIPsVar[i]} "rm /home/ubuntu/dumbo-ng/hosts.config"
-      scp -i "/home/your-name/your-key-dir/your-sk.pem" tmp_hosts.config ubuntu@${pubIPsVar[i]}:/home/ubuntu/dumbo-ng/hosts.config &
-      i=$(( i+1 ))
-    done
-    
-    # Start Protocols at all remote AWS servers
-    i=0; while [ $i -le $(( N-1 )) ]; do   ssh -i "/home/your-name/your-key-dir/your-sk.pem" ubuntu@${pubIPsVar[i]} "export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib; export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib; cd dumbo-ng; nohup python3 run_socket_node.py --sid 'sidA' --id $i --N $N --f $(( (N-1)/3 )) --B 1000 --S 100 --P "ng" --C 20 > node-$i.out" &   i=$(( i+1 )); done
- 
-    # Download logs from all remote AWS servers to your local PC
-    i=0
-    while [ $i -le $(( N-1 )) ]
-    do
-      scp -i "/home/your-name/your-key-dir/your-sk.pem" ubuntu@${pubIPsVar[i]}:/home/ubuntu/dumbo-ng/log/node-$i.log node-$i.log &
-      i=$(( i+1 ))
-    done
- 
-   ```
-
-Here down below is the original README.md of HoneyBadgerBFT
-
-
-# HoneyBadgerBFT
-The Honey Badger of BFT Protocols.
-
-<img width=200 src="http://i.imgur.com/wqzdYl4.png"/>
-
-[![Travis branch](https://img.shields.io/travis/initc3/HoneyBadgerBFT-Python/dev.svg)](https://travis-ci.org/initc3/HoneyBadgerBFT-Python)
-[![Codecov branch](https://img.shields.io/codecov/c/github/initc3/honeybadgerbft-python/dev.svg)](https://codecov.io/github/initc3/honeybadgerbft-python?branch=dev)
-
-HoneyBadgerBFT is a leaderless and completely asynchronous BFT consensus protocols.
-This makes it a good fit for blockchains deployed over wide area networks
-or when adversarial conditions are expected.
-HoneyBadger nodes can even stay hidden behind anonymizing relays like Tor, and
-the purely-asynchronous protocol will make progress at whatever rate the
-network supports.
-
-This repository contains a Python implementation of the HoneyBadgerBFT protocol.
-It is still a prototype, and is not approved for production use. It is intended
-to serve as a useful reference and alternative implementations for other projects.
-
-## Development Activities
-
-Since its initial implementation, the project has gone through a substantial
-refactoring, and is currently under active development.
-
-At the moment, the following three milestones are being focused on:
-
-* [Bounded Badger](https://github.com/initc3/HoneyBadgerBFT-Python/milestone/3)
-* [Test Network](https://github.com/initc3/HoneyBadgerBFT-Python/milestone/2<Paste>)
-* [Release 1.0](https://github.com/initc3/HoneyBadgerBFT-Python/milestone/1)
-
-A roadmap of the project can be found in [ROADMAP.rst](./ROADMAP.rst).
-
-
-### Contributing
-Contributions are welcomed! To quickly get setup for development:
-
-1. Fork the repository and clone your fork. (See the Github Guide
-   [Forking Projects](https://guides.github.com/activities/forking/) if
-   needed.)
-
-2. Install [`Docker`](https://docs.docker.com/install/). (For Linux, see
-   [Manage Docker as a non-root user](https://docs.docker.com/install/linux/linux-postinstall/#manage-docker-as-a-non-root-user)
-   to run `docker` without `sudo`.)
-
-3. Install [`docker-compose`](https://docs.docker.com/compose/install/).
-
-4. Run the tests (the first time will take longer as the image will be built):
-
-   ```bash
-   $ docker-compose run --rm honeybadger
-   ```
-
-   The tests should pass, and you should also see a small code coverage report
-   output to the terminal.
-
-If the above went all well, you should be setup for developing
-**HoneyBadgerBFT-Python**!
-
-## License
-This is released under the CRAPL academic license. See ./CRAPL-LICENSE.txt
-Other licenses may be issued at the authors' discretion.
+This codebase is developed based on [Dumbo-NG](https://github.com/yylluu/Dumbo_NG), and we provided the original README at [./legacy_README.md](./legacy_README.md).
